@@ -1,59 +1,13 @@
 import torch
-from torch import nn 
 import os
-from torchvision.io import read_image
 from torch.utils.data import DataLoader
+from torch import nn
 from tqdm import tqdm
-from torchvision.transforms import Resize
-
-class ocrDataset():
-	def __init__(self, dir, transform=None):
-		assert os.path.exists(dir), "Dataset created with invalid path"
-		self.transform = transform
-		self.imagePaths = []
-		self.labels = []
-
-		subDirs = os.listdir(dir)
-		for i in range(len(subDirs)):
-			currentLabel = subDirs[i]
-			currentDir = os.listdir(os.path.join(dir, currentLabel))
-			for ii in range(len(currentDir)):
-				self.imagePaths.append(os.path.join(dir, currentLabel, currentDir[ii]))
-				self.labels.append(i)
-
-	def __len__(self):
-		return len(self.imagePaths)
-
-	def __getitem__(self, index):
-		image = read_image(self.imagePaths[index])
-		label = self.labels[index]
-		if self.transform:
-			image = self.transform(image)
-
-		return image, label
-
-class Model(nn.Module):
-	def __init__(self, numClasses):
-		super(Model, self).__init__()
-		self.conv = nn.Sequential(
-			nn.Conv2d(1, 32, 5),
-			nn.MaxPool2d(2, 2),
-			nn.Conv2d(32, 16, 5)
-		)
-		self.flatten = nn.Flatten()
-		self.linear_relu_stack = nn.Sequential(
-			nn.Linear(10816, 512),
-			nn.ReLU(),
-			nn.Linear(512, 512),
-			nn.ReLU(),
-			nn.Linear(512, numClasses),
-		)
-
-	def forward(self, x):
-		x = self.conv(x)
-		x = self.flatten(x)
-		logits = self.linear_relu_stack(x)
-		return logits
+from torchvision import transforms
+from torchvision.models.detection.faster_rcnn import FasterRCNN
+from model import Model
+from dataset import ocrDataset, syntheticTextPageSet
+from torch.optim.lr_scheduler import ExponentialLR
 
 def train(dataLoader, device, model, lossFunction, optimiser):
 	model.train()
@@ -89,20 +43,34 @@ def test(dataLoader, model, lossFunction, device):
 	print("Test Error: \n  Correct rate: ", str(100*correct), "%\n  Average Loss: ", str(testLoss), sep="")
 
 
-resizeTransform = Resize((64, 64))
 
-trainingData = ocrDataset(os.path.join(os.getcwd(), "data", "training_data"), transform=resizeTransform)
-testingData = ocrDataset(os.path.join(os.getcwd(), "data", "testing_data"), transform=resizeTransform)
+resizeTransform = transforms.Resize((48, 48))
+trainingAugment = nn.Sequential(
+	transforms.RandomInvert(0.5),
+	transforms.ColorJitter(hue=0.5, brightness=0.2),
+	transforms.RandomRotation(45),
+	resizeTransform
+)
 
-trainLoader = DataLoader(trainingData, batch_size=16, shuffle=True)
-testLoader = DataLoader(testingData, batch_size=16, shuffle=True)
+# trainingData = ocrDataset(os.path.join(os.getcwd(), "data", "training_data"), transform=trainingAugment)
+# testingData = ocrDataset(os.path.join(os.getcwd(), "data", "testing_data"), transform=resizeTransform)
+
+trainingData = syntheticTextPageSet(os.path.join(os.getcwd(), "data", "training_data"), transform=trainingAugment)
+testingData = syntheticTextPageSet(os.path.join(os.getcwd(), "data", "testing_data"), transform=resizeTransform)
+
+batchSize = 128
+
+trainLoader = DataLoader(trainingData, batch_size=batchSize, shuffle=True)
+testLoader = DataLoader(testingData, batch_size=batchSize, shuffle=True)
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print("Using:", device)
-model = Model(numClasses=36).to(device)
+# model = Model(numClasses=36).to(device)
+model = FasterRCNN.fasterrcnn_resnet50_fpn(num_classes = 36)
 
 lossFunction = nn.CrossEntropyLoss()
-optimiser = torch.optim.SGD(model.parameters(), lr=1e-5)
+optimiser = torch.optim.SGD(model.parameters(), lr=1e-3)
+scheduler = ExponentialLR(optimiser, 0.99)
 
 for epoch in range(50):
 	print("\nEpoch ", str(epoch), "\n", sep="")
