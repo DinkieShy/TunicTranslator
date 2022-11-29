@@ -60,12 +60,14 @@ class syntheticTextPageSet():
 		boxes = []
 		labels = []
 
-		for sentences in range(random.randint(5, 10)):
+		for sentences in range(random.randint(2, 4)):
 			currentPosition = (random.randrange(10, self.pageSize[0]-200), random.randrange(10, self.pageSize[1]-200))
 			scale = 0.75 + random.random()*0.5
 			for words in range(random.randint(2, 4)):
 				currentPosition = (currentPosition[0]+random.randint(10, 15), currentPosition[1])
 				for characters in range(random.randint(2, 6)):
+					if currentPosition[0] > generatedImage.width or currentPosition[1] > generatedImage.height:
+						continue;
 					nextCharacter = self.characters[random.randint(0, len(self.characters)-1)]
 					characterImage = Image.open(os.path.join(self.dir, nextCharacter, self.characterImages[nextCharacter][random.randint(0, len(self.characterImages[nextCharacter])-1)]))
 					characterImage.resize((math.floor(characterImage.width*scale), math.floor(characterImage.height*scale)))

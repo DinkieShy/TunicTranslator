@@ -46,8 +46,8 @@ def test(dataLoader, model, lossFunction, device):
 resizeTransform = transforms.Resize((48, 48))
 trainingAugment = nn.Sequential(
 	transforms.RandomInvert(0.5),
-	transforms.ColorJitter(hue=0.5, brightness=0.2),
-	transforms.RandomRotation(45),
+	transforms.ColorJitter(hue=0.2, brightness=0.2),
+	transforms.RandomRotation(15),
 	resizeTransform
 )
 
