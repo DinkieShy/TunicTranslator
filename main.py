@@ -4,7 +4,6 @@ from torch.utils.data import DataLoader
 from torch import nn
 from tqdm import tqdm
 from torchvision import transforms
-from torchvision.models.detection.faster_rcnn import FasterRCNN
 from model import Model
 from dataset import ocrDataset, syntheticTextPageSet
 from torch.optim.lr_scheduler import ExponentialLR
@@ -52,11 +51,8 @@ trainingAugment = nn.Sequential(
 	resizeTransform
 )
 
-# trainingData = ocrDataset(os.path.join(os.getcwd(), "data", "training_data"), transform=trainingAugment)
-# testingData = ocrDataset(os.path.join(os.getcwd(), "data", "testing_data"), transform=resizeTransform)
-
-trainingData = syntheticTextPageSet(os.path.join(os.getcwd(), "data", "training_data"), transform=trainingAugment)
-testingData = syntheticTextPageSet(os.path.join(os.getcwd(), "data", "testing_data"), transform=resizeTransform)
+trainingData = ocrDataset(os.path.join(os.getcwd(), "data", "training_data"), transform=trainingAugment)
+testingData = ocrDataset(os.path.join(os.getcwd(), "data", "testing_data"), transform=resizeTransform)
 
 batchSize = 128
 
@@ -65,8 +61,7 @@ testLoader = DataLoader(testingData, batch_size=batchSize, shuffle=True)
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print("Using:", device)
-# model = Model(numClasses=36).to(device)
-model = FasterRCNN.fasterrcnn_resnet50_fpn(num_classes = 36)
+model = Model(numClasses=36).to(device)
 
 lossFunction = nn.CrossEntropyLoss()
 optimiser = torch.optim.SGD(model.parameters(), lr=1e-3)
